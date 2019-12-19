@@ -14,6 +14,7 @@ line_length = 16
 num_lines = 2
 
 # background light timeout - specified in ticks
+#bg_timeout = 50 # == 5 seconds
 bg_timeout = 600 # == 1 minute
 
 # Implementation starts here
@@ -81,24 +82,39 @@ def _disconnect(mpc):
     mpc.close()
     mpc.disconnect()
 
+def get_key(d, key):
+    try:
+        return d[key]
+    except KeyError:
+        return None
+
 def get_mpd_status(mpc):
     stat = mpc.status()
     song = mpc.currentsong()
     extract = {}
     for key in ('repeat','random','state','elapsed','volume','single','duration'):
-        extract[key] = stat[key]
+        extract[key] = get_key(stat,key)
     for key in ('title','track','artist'):
-        extract[key] = song[key]
+        extract[key] = get_key(song,key)
     return extract
 
 
 def state_to_strings(state):
     # 1st line: track id: song title - artist name
-    line1 = '%s: %s - %s' % (state['track'], state['title'], state['artist'])
+    if state['state'] == 'stop':
+        line1 = ' ' * line_length
+    else:
+        line1 = '%s: %s - %s' % (state['track'], state['title'], state['artist'])
     # 2nd line: flags, spacer, play/pause, time elapsed/song duration
     # "SR_X 01:23/04:56"
-    time = int(float(state['elapsed']))
-    length = int(float(state['duration']))
+    try:
+        time = int(float(state['elapsed']))
+    except TypeError:
+        time = 0
+    try:
+        length = int(float(state['duration']))
+    except TypeError:
+        length = 0
     state_symbol = STOP
     if state['state'] == 'play':
         state_symbol = PLAY
@@ -175,10 +191,13 @@ while True:
         lcd.backlight(1)
     else:
         time_since_change = time_since_change + 1
+
     for l in lines:
         l.tick()
+
     if time_since_change == bg_timeout:
         lcd.backlight(0)
+
     old_state = state
     time.sleep(tick_time)
 

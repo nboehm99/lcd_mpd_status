@@ -20,6 +20,7 @@ Changes by Niko Boehm <coding@semisane.de>
 * add load_custom_char to load a specific custom character
 * add some range checks
 * refactor display_string[_pos]
+* allow display updates with backlight disabled
 """
 
 import smbus
@@ -114,6 +115,7 @@ class lcd:
     #initializes objects and lcd
     def __init__(self, i2c_address=DEFAULT_ADDRESS):
         self.lcd_device = i2c_device(i2c_address)
+        self.backlight_mask = LCD_BACKLIGHT
 
         self.write(0x03)
         self.write(0x03)
@@ -128,13 +130,13 @@ class lcd:
 
    # clocks EN to latch command
     def _strobe(self, data):
-        self.lcd_device.write_cmd(data | En | LCD_BACKLIGHT)
+        self.lcd_device.write_cmd(data | En | self.backlight_mask)
         sleep(.0005)
-        self.lcd_device.write_cmd(((data & ~En) | LCD_BACKLIGHT))
+        self.lcd_device.write_cmd(((data & ~En) | self.backlight_mask))
         sleep(.0001)
 
     def _write_four_bits(self, data):
-        self.lcd_device.write_cmd(data | LCD_BACKLIGHT)
+        self.lcd_device.write_cmd(data | self.backlight_mask)
         self._strobe(data)
 
     # write a command to lcd
@@ -160,9 +162,10 @@ class lcd:
     # define backlight on/off (lcd.backlight(1); off= lcd.backlight(0)
     def backlight(self, state): # for state, 1 = on, 0 = off
         if state == 1:
-            self.lcd_device.write_cmd(LCD_BACKLIGHT)
+            self.backlight_mask = LCD_BACKLIGHT
         elif state == 0:
-            self.lcd_device.write_cmd(LCD_NOBACKLIGHT)
+            self.backlight_mask = LCD_NOBACKLIGHT
+        self.lcd_device.write_cmd(self.backlight_mask)
 
     # add single custom character
     def load_custom_char(self, idx, fontdata):
