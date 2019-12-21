@@ -30,4 +30,10 @@ t.b.d.
 
 ### Setting up as a service
 
-t.b.d.
+If you want to run this script automatically from start, you can add it as a
+systemd service using the following commands:
+
+    chmod +x lcd_mpd_status.py
+    sudo cp lcd_mpd_status.service.template /etc/systemd/system/lcd-mpd-status.service
+    # edit /etc/systemd/system/lcd-mpd-status.service and enter the path to the script
+    sudo systemctl enable lcd-mpd-status

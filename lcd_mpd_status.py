@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 import HD44780_I2C
 import mpd
 import time

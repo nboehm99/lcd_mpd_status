@@ -1,0 +1,13 @@
+[Unit]
+Description=LCD MPD status display service
+After=network.target iptables.service firewalld.service mpd.service
+
+[Service]
+User=pi
+Group=pi
+Restart=always
+WorkingDirectory=/home/pi/lcd_mpd_status
+ExecStart=/home/pi/lcd_mpd_status/lcd_mpd_status.py
+
+[Install]
+WantedBy=multi-user.target
