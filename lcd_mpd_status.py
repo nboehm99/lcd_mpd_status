@@ -10,6 +10,8 @@ import time
 tick_time = 0.1
 # scrolling delay - specified in ticks
 scroll_delay = 4 # == 0.4s
+# notification time - specified in ticks
+notif_time = 20 # == 2s
 
 # for 1602 use these:
 line_length = 16
@@ -90,6 +92,14 @@ def get_key(d, key):
     except KeyError:
         return None
 
+def center(s):
+    global line_length
+    l = len(s)
+    if l >= line_length: return s
+    todo = line_length - l
+    (half, extra) = divmod(todo, 2)
+    return ' '*(half+extra) + s + ' '*half
+
 def get_mpd_status(mpc):
     stat = mpc.status()
     song = mpc.currentsong()
@@ -135,6 +145,10 @@ def state_to_strings(state):
     line2 = '%s %02d:%02d/%02d:%02d' % (line2_symbols, time/60, time%60, length/60, length%60)
     return ( line1, line2 )
 
+def get_notification(old, new):
+    if old['volume'] != new['volume']:
+        return center("Volume: %s%%" % new['volume'])
+    return None
 
 class ScrollLine:
     def __init__(self, lcd, line, length, scroll_delay, string=''):
@@ -142,6 +156,7 @@ class ScrollLine:
         self.line = line
         self.length = length
         self.scroll_delay = scroll_delay
+        self.notif_timout = 0
         self.string = None
         self.set_string(string)
 
@@ -149,24 +164,38 @@ class ScrollLine:
         if string == self.string:
             return
         self.string = string
-        self.strlength = len(string)
-        if self.strlength > self.length:
+        if self.notif_timout == 0:
+            self._display(string)
+
+    def set_notification(self, string):
+        global notif_time
+        self.notif_timout = notif_time
+        self._display(string)
+
+    def _display(self, string):
+        self.display_string = string
+        self.dstrlength = len(string)
+        if self.dstrlength > self.length:
             self.scrolling = True
             self.scroll_ticks = 0
             self.scroll_pos = 0
-            self.scroll_string = string + ' -- ' # delimiter for wrap around
-            self.strlength = len(self.scroll_string)
+            self.display_string = string + ' -- ' # delimiter for wrap around
+            self.dstrlength = len(self.display_string)
         else:
             self.scrolling = False
-            disp_string = string + (' '*(self.length - self.strlength))
+            disp_string = string + (' '*(self.length - self.dstrlength))
             self.lcd.display_string(disp_string, self.line)
 
     def tick(self):
+        if self.notif_timout > 0:
+            self.notif_timout = self.notif_timout - 1
+            if self.notif_timout == 0:
+                self._display(self.string)
         if self.scrolling:
             if self.scroll_ticks == 0:
-                disp_string = (self.scroll_string*2)[self.scroll_pos:self.scroll_pos+self.length]
+                disp_string = (self.display_string*2)[self.scroll_pos:self.scroll_pos+self.length]
                 self.lcd.display_string(disp_string, self.line)
-                self.scroll_pos = (self.scroll_pos + 1) % self.strlength
+                self.scroll_pos = (self.scroll_pos + 1) % self.dstrlength
             self.scroll_ticks = (self.scroll_ticks + 1) % self.scroll_delay
 
 # Program starts here
@@ -189,6 +218,10 @@ while True:
         new_lcd_strings = state_to_strings(state)
         for i in range(0,num_lines):
             lines[i].set_string(new_lcd_strings[i])
+        if old_state != None:
+            notification = get_notification(old_state, state)
+            if notification:
+                lines[1].set_notification(notification)
         time_since_change = 0
         lcd.backlight(1)
     else:
