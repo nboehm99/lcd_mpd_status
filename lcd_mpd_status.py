@@ -3,6 +3,7 @@
 import HD44780_I2C
 import mpd
 import time
+import os.path
 
 # Configuration here
 
@@ -12,6 +13,9 @@ tick_time = 0.1
 scroll_delay = 4 # == 0.4s
 # notification time - specified in ticks
 notif_time = 20 # == 2s
+
+# welcome message - displayed until first change in mpd state
+WELCOME = "Phoniebox"
 
 # for 1602 use these:
 line_length = 16
@@ -98,7 +102,7 @@ def center(s):
     if l >= line_length: return s
     todo = line_length - l
     (half, extra) = divmod(todo, 2)
-    return ' '*(half+extra) + s + ' '*half
+    return ' '*half + s + ' '*(half+extra)
 
 def get_mpd_status(mpc):
     stat = mpc.status()
@@ -106,17 +110,31 @@ def get_mpd_status(mpc):
     extract = {}
     for key in ('repeat','random','state','elapsed','volume','single','duration'):
         extract[key] = get_key(stat,key)
-    for key in ('title','track','artist'):
+    for key in ('title','track','artist','file'):
         extract[key] = get_key(song,key)
     return extract
 
+UNKNOWN = center('(unknown)')
+
+def get_title_string(state):
+    s=UNKNOWN
+    if state['title'] is not None:
+        s = state['title']
+        if state['track'] is not None:
+            s = '%s: %s' % (state['track'], s)
+        if state['artist'] is not None:
+            s = '%s - %s' % (s, state['artist'])
+    elif state['file'] is not None:
+        # if title is not present, hopefully there's a filename
+        s = os.path.basename(state['file'])
+    return s
 
 def state_to_strings(state):
     # 1st line: track id: song title - artist name
     if state['state'] == 'stop':
         line1 = ' ' * line_length
     else:
-        line1 = '%s: %s - %s' % (state['track'], state['title'], state['artist'])
+        line1 = get_title_string(state)
     # 2nd line: flags, spacer, play/pause, time elapsed/song duration
     # "SR_X 01:23/04:56"
     try:
@@ -205,13 +223,14 @@ lcd.clear()
 lcd.load_custom_chars(CUSTOM_CHARS)
 
 mpc = _connect()
-old_state = None
 
 lines = []
 for i in range(1, num_lines+1):
     lines.append(ScrollLine(lcd, i, line_length, scroll_delay))
+lines[0].set_string(center(WELCOME))
 
 time_since_change = 0
+old_state = get_mpd_status(mpc)
 while True:
     state = get_mpd_status(mpc)
     if state != old_state:
