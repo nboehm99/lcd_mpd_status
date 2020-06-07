@@ -72,6 +72,15 @@ CUSTOM_CHARS = (
  0b00100,
  0b00100,
  0b00000,
+ 0b00000),
+ ( # 5 - shuffle
+ 0b00000,
+ 0b00000,
+ 0b11001,
+ 0b00100,
+ 0b10011,
+ 0b00000,
+ 0b00000,
  0b00000)
 )
 PLAY = '\x00'
@@ -79,6 +88,7 @@ PAUSE = '\x01'
 STOP = '\x02'
 REPEAT = '\x03'
 SINGLE = '\x04'
+SHUFFLE = '\x05'
 
 def _connect():
     mpc = mpd.MPDClient()
@@ -158,7 +168,7 @@ def state_to_strings(state):
         rep_symbol = REPEAT
     shuffle_symbol = '-'
     if state['random'] == '1':
-        shuffle_symbol = '~'
+        shuffle_symbol = SHUFFLE
     line2_symbols = shuffle_symbol + rep_symbol + spacer + state_symbol
     line2 = '%s %02d:%02d/%02d:%02d' % (line2_symbols, time/60, time%60, length/60, length%60)
     return ( line1, line2 )
